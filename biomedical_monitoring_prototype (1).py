@@ -84,10 +84,11 @@ class Welford:
     def std(self) -> float:
         return safe_std(self.variance)
 
-    def z_score(self, value: float) -> float:
+    def z_score(self, value: float, min_std: float = 0.05) -> float:
         if self.count < 2:
             return 0.0
-        z = (value - self.mean) / self.std
+        std = max(self.std, min_std)
+        z = (value - self.mean) / std
         return clamp(z, -Z_LIMIT, Z_LIMIT)
 
 
@@ -113,11 +114,11 @@ class PersonalBaseline:
 
     def z_scores(self, sample: Dict[str, float]) -> Dict[str, float]:
         return {
-            "hr_z": self.hr.z_score(sample["hr"]),
-            "spo2_z": self.spo2.z_score(sample["spo2"]),
-            "temp_z": self.body_temp.z_score(sample["body_temp"]),
-            "ambient_temp_z": self.ambient_temp.z_score(sample["ambient_temp"]),
-            "humidity_z": self.humidity.z_score(sample["humidity"]),
+            "hr_z": self.hr.z_score(sample["hr"], min_std=4.0),
+            "spo2_z": self.spo2.z_score(sample["spo2"], min_std=0.5),
+            "temp_z": self.body_temp.z_score(sample["body_temp"], min_std=0.15),
+            "ambient_temp_z": self.ambient_temp.z_score(sample["ambient_temp"], min_std=1.0),
+            "humidity_z": self.humidity.z_score(sample["humidity"], min_std=3.0),
         }
 
     def summary(self) -> str:
@@ -225,7 +226,19 @@ def initial_risk_trigger(sample: Dict[str, float], z: Dict[str, float]) -> Tuple
         or sample["body_temp"] >= TEMP_HIGH_CRITICAL
     )
 
-    abnormal_count = int(hr_abnormal) + int(spo2_abnormal) + int(temp_abnormal)
+    activity = float(sample.get("accel_rms") or 0.0)
+    exercise_explained = (
+        activity >= 0.25
+        and hr_abnormal
+        and not spo2_abnormal
+        and not temp_abnormal
+        and not critical
+    )
+
+    # High activity can explain an isolated HR rise. Do not start
+    # deeper sensing from that single signal alone.
+    effective_hr_abnormal = hr_abnormal and not exercise_explained
+    abnormal_count = int(effective_hr_abnormal) + int(spo2_abnormal) + int(temp_abnormal)
 
     if hr_abnormal:
         reasons.append(f"HR {z['hr_z']:+.1f}σ")
@@ -368,6 +381,18 @@ def calculate_risk(
         + 0.20 * temp_ab
     )
 
+    activity = float(sample.get("accel_rms") or 0.0)
+    exercise_explained = (
+        activity >= 0.25
+        and abs(z["hr_z"]) >= FLAG_Z
+        and z["spo2_z"] > -FLAG_Z
+        and abs(z["temp_z"]) < FLAG_Z
+        and not sample["fall"]
+    )
+
+    if exercise_explained:
+        physio *= 0.45
+
     # ECG only becomes available in Emergency Mode.
     ecg = (
         float(sample["ecg_abnormality"])
@@ -408,6 +433,8 @@ def calculate_risk(
 
     if abs(z["hr_z"]) >= FLAG_Z:
         reasons.append(f"HR {z['hr_z']:+.1f}σ")
+        if exercise_explained:
+            reasons.append("high activity explains HR rise")
     if z["spo2_z"] <= -FLAG_Z:
         reasons.append(f"SpO2 {z['spo2_z']:+.1f}σ")
     if abs(z["temp_z"]) >= FLAG_Z:
@@ -549,8 +576,8 @@ class Monitor:
         emergency_triggered = False
         peak_rank = 0
         peak_label = "NORMAL"
-        peak_confidence = 0.0
-        peak_reason = ""
+        peak_confidence = 0.50
+        peak_reason = "within personal baseline range"
 
         for tick in range(ticks):
             sample = make_sensor_sample(self.baseline, scenario, self.rng)
