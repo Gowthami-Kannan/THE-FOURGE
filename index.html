@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Biomedical Monitoring</title>
+<link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="identity">
+    <h1>Personalized Environment-Aware Biomedical Monitoring</h1>
+    <p class="subtitle">Decision-support prototype &mdash; not a diagnostic device</p>
+  </div>
+
+  <div class="link" id="link-panel">
+    <span class="state" id="state-pill" data-state="off">Device not connected</span>
+    <select id="port-select" aria-label="Device port"></select>
+    <input id="baud-input" type="number" value="115200" aria-label="Baud rate" />
+    <select id="scenario-select" aria-label="Test scenario" hidden></select>
+    <button id="refresh-ports" type="button" class="ghost">Rescan</button>
+    <button id="connect-btn" type="button" class="primary">Connect</button>
+    <button id="disconnect-btn" type="button" class="ghost" disabled>Disconnect</button>
+  </div>
+</header>
+
+<div id="test-banner" class="test-banner" hidden>TEST MODE &mdash; simulated device, no hardware attached</div>
+
+<main>
+
+  <!-- ================= verdict ================= -->
+  <section class="verdict" id="verdict" data-level="NORMAL">
+    <div class="verdict-main">
+      <p class="verdict-label">Risk level</p>
+      <p class="verdict-level" id="risk-level">&mdash;</p>
+      <p class="verdict-reason" id="risk-reason">Waiting for the device.</p>
+    </div>
+    <div class="verdict-metrics">
+      <div class="metric">
+        <span class="metric-value" id="risk-score">&mdash;</span>
+        <span class="metric-name">Risk score</span>
+        <div class="bar"><i id="risk-bar"></i></div>
+      </div>
+      <div class="metric">
+        <span class="metric-value" id="confidence">&mdash;</span>
+        <span class="metric-name">Decision confidence</span>
+        <div class="bar"><i id="conf-bar"></i></div>
+      </div>
+      <div class="metric">
+        <span class="metric-value" id="emergency-mode">OFF</span>
+        <span class="metric-name">Emergency mode</span>
+        <span class="metric-sub" id="baseline-maturity">Baseline 0%</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= continuous ================= -->
+  <section class="block">
+    <div class="block-head">
+      <h2>Continuous monitoring</h2>
+      <span class="block-note" id="continuous-note">Streaming from the board at all times</span>
+    </div>
+    <div class="tiles" id="continuous-tiles"></div>
+  </section>
+
+  <!-- ================= add-on ================= -->
+  <section class="block addon" id="addon-block">
+    <div class="block-head">
+      <h2>Emergency / add-on monitoring</h2>
+      <span class="block-note" id="addon-note">Standby &mdash; activated by the decision engine</span>
+    </div>
+    <div class="tiles" id="addon-tiles"></div>
+    <div class="command-line" id="command-line">
+      <span id="command-text">No activation command sent yet.</span>
+      <button id="force-addon" type="button" class="ghost">Turn add-ons on</button>
+      <button id="stop-addon" type="button" class="ghost">Turn add-ons off</button>
+    </div>
+  </section>
+
+  <!-- ================= charts ================= -->
+  <section class="charts">
+    <figure class="chart-card">
+      <figcaption>Heart rate and SpO<sub>2</sub></figcaption>
+      <canvas id="chart-vitals" height="200"></canvas>
+    </figure>
+    <figure class="chart-card">
+      <figcaption>Risk score</figcaption>
+      <canvas id="chart-risk" height="200"></canvas>
+    </figure>
+  </section>
+
+  <!-- ================= baseline + alerts ================= -->
+  <section class="split">
+    <div class="panel">
+      <h2>Personal baseline and deviation</h2>
+      <table class="grid" id="baseline-table">
+        <thead>
+          <tr><th>Signal</th><th>Baseline</th><th>Spread</th><th>Samples</th><th>z</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h2>Alerts</h2>
+      <ul class="alerts" id="alert-list"><li class="empty">No alerts yet.</li></ul>
+    </div>
+  </section>
+
+  <!-- ================= history ================= -->
+  <section class="panel wide">
+    <div class="block-head">
+      <h2>History</h2>
+      <span class="block-note" id="history-note"></span>
+    </div>
+    <table class="grid" id="history-table">
+      <thead>
+        <tr><th>Time</th><th>HR</th><th>SpO<sub>2</sub></th><th>Body &deg;C</th>
+            <th>Amb &deg;C</th><th>RH %</th><th>hPa</th><th>Risk</th><th>Score</th><th>Conf.</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="panel wide">
+    <h2>Rejected packets</h2>
+    <ul class="rejects" id="reject-list"><li class="empty">None. Every packet so far parsed cleanly.</li></ul>
+  </section>
+
+</main>
+
+<footer>
+  <span id="footer-stats">&mdash;</span>
+  <span>Confidence shown is the system's confidence in its own decision, not a medical probability.</span>
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
