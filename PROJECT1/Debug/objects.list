@@ -1,0 +1,8 @@
+"./Src/air.o"
+"./Src/main.o"
+"./Src/max.o"
+"./Src/mpu.o"
+"./Src/syscalls.o"
+"./Src/sysmem.o"
+"./Src/temp.o"
+"./Startup/startup_stm32g474ccux.o"
